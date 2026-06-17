@@ -130,6 +130,7 @@
   .hm-day.hm-cardio { background: #93C5FD; }
   .hm-day.hm-rest { background: #D1D5DB; }
   .hm-day.hm-missed { background: #FCA5A5; }
+  .hm-day.hm-hyrox { background: #C4B5FD; }
   .hm-day.hm-before-start { background: var(--muted-bg); opacity: 0.35; }
   .hm-labels { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
   .hm-label { font-size: 10px; color: var(--muted); text-align: center; }
@@ -318,10 +319,10 @@
   </div>
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('workout')">Workout</button>
-    <button class="tab-btn" onclick="switchTab('progress')">Progress</button>
     <button class="tab-btn" onclick="switchTab('diet')">Diet</button>
     <button class="tab-btn" onclick="switchTab('meditation')">Mindfulness</button>
     <button class="tab-btn" onclick="switchTab('hyrox')">Hyrox</button>
+    <button class="tab-btn" onclick="switchTab('progress')">Progress</button>
   </div>
 </div>
 
@@ -542,6 +543,7 @@
     <div class="hm-legend">
       <div class="hm-legend-item"><div class="hm-legend-dot" style="background:var(--green)"></div> Strength</div>
       <div class="hm-legend-item"><div class="hm-legend-dot" style="background:#93C5FD"></div> Cardio</div>
+      <div class="hm-legend-item"><div class="hm-legend-dot" style="background:#C4B5FD"></div> Hyrox</div>
       <div class="hm-legend-item"><div class="hm-legend-dot" style="background:#D1D5DB"></div> Rest</div>
       <div class="hm-legend-item"><div class="hm-legend-dot" style="background:#FCA5A5"></div> Missed</div>
       <div class="hm-legend-item"><div class="hm-legend-dot" style="background:var(--muted-bg)"></div> Future</div>
@@ -559,6 +561,7 @@
       <div class="stat-card"><div class="stat-val green" id="totalWorkoutDays">0</div><div class="stat-label">total days done</div></div>
       <div class="stat-card"><div class="stat-val" id="totalCardioDays">0</div><div class="stat-label">cardio sessions</div></div>
       <div class="stat-card"><div class="stat-val" id="totalStrengthDays">0</div><div class="stat-label">strength sessions</div></div>
+      <div class="stat-card"><div class="stat-val" id="totalHyroxDays">0</div><div class="stat-label">hyrox sessions</div></div>
     </div>
   </div>
 
@@ -1005,9 +1008,9 @@ const WORKOUT_SCHEDULE = {
   // Mon(1)=Cardio, Tue(2)=Upper, Wed(3)=Hyrox, Thu(4)=Legs, Fri(5)=Hyrox/Run, Sat(6)=Power, Sun(0)=Rest
   1: { type: 'Cardio',    badge: 'cardio', exercises: [] },
   2: { type: 'Upper',     badge: 'push',   exercises: ['Barbell Bench Press','Dumbbell Bench Press','Shoulder Press','Lat Pulldown','Seated Row','Bent Over Row'] },
-  3: { type: 'Hyrox',     badge: 'cardio', exercises: [] },   // dynamic from plan
+  3: { type: 'Hyrox',     badge: 'hyrox',  exercises: [] },   // dynamic from plan
   4: { type: 'Legs',      badge: 'legs',   exercises: ['Squats','Step-Ups','Walking Lunges','Leg Press','Calf Raises','Plank'] },
-  5: { type: 'Hyrox/Run', badge: 'cardio', exercises: [] },   // dynamic from plan
+  5: { type: 'Hyrox/Run', badge: 'hyrox',  exercises: [] },   // dynamic from plan
   6: { type: 'Power',     badge: 'legs',   exercises: ['Deadlift','Sled Pull','Sled Push','Sandbag Lunges','Wall Balls'] },
   0: { type: 'Rest',      badge: 'rest',   exercises: ['Active stretching','Hydration focus','Sleep priority'] }
 };
@@ -1017,9 +1020,9 @@ const WORKOUT_SCHEDULE = {
 const WORKOUT_SCHEDULE_SUSHIL = {
   1: { type: 'Cardio',    badge: 'cardio', exercises: [] },
   2: { type: 'Upper',     badge: 'push',   exercises: ['Barbell Bench Press','Dumbbell Bench Press','Shoulder Press','Lat Pulldown','Seated Row'] },
-  3: { type: 'Hyrox',     badge: 'cardio', exercises: [] },
+  3: { type: 'Hyrox',     badge: 'hyrox',  exercises: [] },
   4: { type: 'Legs',      badge: 'legs',   exercises: ['Squats','Step-Ups','Walking Lunges','Leg Press','Calf Raises','Plank'] },
-  5: { type: 'Hyrox/Run', badge: 'cardio', exercises: [] },
+  5: { type: 'Hyrox/Run', badge: 'hyrox',  exercises: [] },
   6: { type: 'Power',     badge: 'legs',   exercises: ['Deadlift','Sled Pull','Sled Push','Sandbag Lunges','Wall Balls'] },
   0: { type: 'Rest',      badge: 'rest',   exercises: ['Active stretching','Hydration focus','Sleep priority'] }
 };
@@ -1470,7 +1473,7 @@ function loadWorkout() {
 
 function renderWorkoutBadge(schedule) {
   const el = document.getElementById('workoutTypeBadge');
-  const labels = { push:'💪 Push Day', pull:'🔄 Pull Day', legs:'🦵 Leg Day', cardio:'🏃 Cardio Day', rest:'😴 Rest Day' };
+  const labels = { push:'💪 Push Day', pull:'🔄 Pull Day', legs:'🦵 Leg Day', cardio:'🏃 Cardio Day', hyrox:'🏁 Hyrox Day', rest:'😴 Rest Day' };
   el.innerHTML = `<div class="workout-type-badge badge-${schedule.badge}">${labels[schedule.badge]}</div>`;
 }
 
@@ -1478,13 +1481,16 @@ function renderWorkoutContent(schedule, dow) {
   const cont = document.getElementById('workoutContent');
   cont.innerHTML = '';
 
-  if (schedule.badge === 'cardio') {
+  if (schedule.badge === 'cardio' || schedule.badge === 'hyrox') {
     const sessionDone = ls('done_' + currentWorkoutDate, false);
     const savedLog = ls('tread_log_' + currentWorkoutDate, { duration: '', runKm: '', notes: '' });
     const isFuture = currentWorkoutDate > today();
     const completeBtnHtml = isFuture
       ? '<button class="btn-complete done" style="opacity:0.45;cursor:not-allowed" disabled>Save &amp; Mark Complete</button>'
-      : '<button class="btn-complete' + (sessionDone ? ' done' : '') + '" onclick="markCardioComplete()" id="completeBtn">' + (sessionDone ? '✓ Activity Logged' : 'Save &amp; Mark Complete') + '</button>';
+      : '<button class="btn-complete' + (sessionDone ? ' done' : '') + '" onclick="markCardioComplete()" id="completeBtn">' + (sessionDone ? '✓ Activity Logged' : 'Save &amp; Mark Complete') + '</button>' +
+        '<div id="undoCompleteRow" style="display:' + (sessionDone ? 'flex' : 'none') + ';justify-content:center;margin-top:8px">' +
+          '<button data-date="' + currentWorkoutDate + '" onclick="clearDayComplete(this.dataset.date)" style="background:none;border:none;font-size:13px;color:var(--muted);cursor:pointer;text-decoration:underline">Undo — not completed</button>' +
+        '</div>';
 
     // ── Wednesday & Friday: Hyrox plan block ────────────────────────────────
     if (dow === 3 || dow === 5) {
@@ -1840,13 +1846,32 @@ function getLastSessionDate(dow, beforeDate) {
 
 function markComplete() {
   if (warnFuture(currentWorkoutDate)) return;
+  const alreadyDone = ls('done_' + currentWorkoutDate, false);
+  if (alreadyDone) {
+    clearDayComplete(currentWorkoutDate);
+    return;
+  }
   lsSave('done_' + currentWorkoutDate, true);
   const btn = document.getElementById('completeBtn');
   if (btn) { btn.textContent = '✓ Day Marked Complete'; btn.classList.add('done'); }
+  const undoRow = document.getElementById('undoCompleteRow');
+  if (undoRow) undoRow.style.display = 'flex';
   renderHeatmap();
   updateStreak();
   renderWeekStrip();
-  renderWorkoutSummary(); // update stat cards immediately
+  renderWorkoutSummary();
+}
+
+function clearDayComplete(dateStr) {
+  lsSave('done_' + dateStr, false);
+  const btn = document.getElementById('completeBtn');
+  if (btn) { btn.textContent = 'Mark Day Complete'; btn.classList.remove('done'); }
+  const undoRow = document.getElementById('undoCompleteRow');
+  if (undoRow) undoRow.style.display = 'none';
+  renderHeatmap();
+  updateStreak();
+  renderWeekStrip();
+  renderWorkoutSummary();
 }
 
 function renderWeekStrip() {
@@ -1867,7 +1892,7 @@ function renderWeekStrip() {
     const isCurrent = dk === currentWorkoutDate;
     const div = document.createElement('div');
     let cls = 'week-day';
-    if (done) cls += schedule.badge === 'cardio' ? ' cardio-day' : ' done';
+    if (done) cls += (schedule.badge === 'cardio') ? ' cardio-day' : (schedule.badge === 'hyrox') ? ' hyrox-day' : ' done';
     else if (schedule.badge === 'rest') cls += ' rest-day';
     if (isToday || isCurrent) cls += ' today';
     div.className = cls;
@@ -2400,7 +2425,7 @@ function renderCardioSessions() {
 }
 
 function renderWorkoutSummary() {
-  let total = 0, cardio = 0, strength = 0;
+  let total = 0, cardio = 0, strength = 0, hyrox = 0;
   const startDate = USERS[ACTIVE_USER]?.startDate || '2026-06-17';
   const prefix = ACTIVE_USER + ':done_';
   // Directly scan localStorage for this user's done_ keys
@@ -2422,9 +2447,11 @@ function renderWorkoutSummary() {
   const totalEl = document.getElementById('totalWorkoutDays');
   const cardioEl = document.getElementById('totalCardioDays');
   const strEl = document.getElementById('totalStrengthDays');
+  const hyroxEl = document.getElementById('totalHyroxDays');
   if (totalEl) totalEl.textContent = total;
   if (cardioEl) cardioEl.textContent = cardio;
   if (strEl) strEl.textContent = strength;
+  if (hyroxEl) hyroxEl.textContent = hyrox;
 }
 
 // Track which month is shown in heatmap
@@ -2453,7 +2480,7 @@ function renderHeatmap() {
   const startDow = (first.getDay() + 6) % 7; // Monday-first
 
   el.innerHTML = '';
-  let doneCnt = 0, cardioCnt = 0, missedCnt = 0, restCnt = 0;
+  let doneCnt = 0, cardioCnt = 0, hyroxCnt = 0, missedCnt = 0, restCnt = 0;
 
   // blank cells before month start
   for (let i = 0; i < startDow; i++) {
@@ -2473,9 +2500,16 @@ function renderHeatmap() {
     let cls = 'hm-day';
     const isAfterStart = dk >= (USERS[ACTIVE_USER]?.startDate || '2026-06-17');
     const isFuture = dk > todayStr;
-    if (isAfterStart && done) {
-      // Any date — past, today, or future — that is marked done gets colored
-      if (s.badge === 'cardio') { cls += ' hm-cardio'; cardioCnt++; }
+    // Also check if this date has a saved MMA gym session
+    const gymSessions = ls('hx_sessions_' + dk, []);
+    const hasGymSession = gymSessions.some(function(g){ return g.type === 'gym'; });
+
+    if (isAfterStart && (done || hasGymSession)) {
+      if (hasGymSession && !done) {
+        // MMA gym day — show as hyrox
+        cls += ' hm-hyrox'; hyroxCnt++;
+      } else if (s.badge === 'hyrox') { cls += ' hm-hyrox'; hyroxCnt++; }
+      else if (s.badge === 'cardio') { cls += ' hm-cardio'; cardioCnt++; }
       else if (s.badge !== 'rest') { cls += ' hm-done'; doneCnt++; }
     } else if (!isAfterStart && (isPast || isToday)) {
       cls += ' hm-before-start'; // before start date — greyed out
@@ -2488,7 +2522,7 @@ function renderHeatmap() {
     const div = document.createElement('div');
     div.className = cls;
     if (isToday) div.style.border = '2px solid var(--green)';
-    div.title = new Date(year, month, d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) + (done ? ' ✓' : (isPast && isAfterStart && s.badge !== 'rest') ? ' ✗' : '');
+    div.title = new Date(year, month, d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) + (done || hasGymSession ? ' ✓' : (isPast && isAfterStart && s.badge !== 'rest') ? ' ✗' : '');
     el.appendChild(div);
   }
 
@@ -2499,6 +2533,7 @@ function renderHeatmap() {
     statsEl.innerHTML = [
       { val: doneCnt, label: 'Strength', col: '#1D9E75', bg: '#E1F5EE' },
       { val: cardioCnt, label: 'Cardio', col: '#0C447C', bg: '#E6F1FB' },
+      { val: hyroxCnt, label: 'Hyrox', col: '#5B21B6', bg: '#EDE9FE' },
       { val: missedCnt, label: 'Missed', col: '#7F1D1D', bg: '#FCEBEB' },
     ].map(s => `<div style="flex:1;text-align:center;background:${s.bg};border-radius:8px;padding:8px 4px">
       <div style="font-size:20px;font-weight:700;color:${s.col}">${s.val}</div>
