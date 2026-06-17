@@ -280,6 +280,7 @@
   .med-cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 5px; }
   .med-cal-day { aspect-ratio: 1; border-radius: 6px; background: var(--muted-bg); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--muted); cursor: default; }
   .med-cal-day.med-done { background: #60A5FA; color: white; font-weight: 600; }
+  .med-cal-day.med-missed { background: #FCA5A5; color: #791F1F; font-weight: 600; }
   .med-cal-day.med-today { border: 2px solid #60A5FA; }
   .med-cal-day.med-before-start { opacity: 0.25; }
   .med-history-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
@@ -2323,7 +2324,10 @@ function updateStreak() {
     const dk = fmtDate(d);
     const dow = d.getDay();
     if (getSchedule()[dow].badge === 'rest') { d.setDate(d.getDate() - 1); continue; }
-    if (ls('done_' + dk, false)) { streak++; d.setDate(d.getDate() - 1); }
+    const hasWorkout = ls('done_' + dk, false);
+    const hxSessions = ls('hx_sessions_' + dk, []);
+    const hasHyroxSession = hxSessions.length > 0;
+    if (hasWorkout || hasHyroxSession) { streak++; d.setDate(d.getDate() - 1); }
     else break;
   }
   return streak;
@@ -2762,6 +2766,7 @@ function saveHxSession() {
   hxSelectedActivities = [];
   renderHxActivityPills();
   renderHxSavedSessions(hxModalDate);
+  renderProgress(); // Update streak in progress tab
 }
 
 function deleteHxSession(dk, id) {
@@ -2769,6 +2774,7 @@ function deleteHxSession(dk, id) {
   lsSave('hx_sessions_' + dk, sessions);
   renderHxSavedSessions(dk);
   renderHxCalendar();
+  renderProgress(); // Update streak in progress tab
 }
 
 function renderHxSavedSessions(dk) {
@@ -3006,9 +3012,11 @@ function renderMedCalendar() {
     const isPast = dk <= todayStr;
     const beforeStart = dk < MED_START;
     const isSelected = dk === currentMindfulDate;
+    const isMissed = !beforeStart && isPast && dk !== todayStr && !hasSessions;
     const div = document.createElement('div');
     let cls = 'med-cal-day';
     if (beforeStart) cls += ' med-before-start';
+    else if (isMissed) cls += ' med-missed';
     else if (hasSessions) cls += ' med-done';
     if (dk === todayStr) cls += ' med-today';
     if (isSelected) div.style.outline = '2px solid #1D4ED8';
